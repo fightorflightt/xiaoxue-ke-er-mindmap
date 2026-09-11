@@ -36,7 +36,7 @@ const DATA=JSON.parse(document.getElementById('lecture-data').textContent),root=
 root.children=root.children.filter(n=>n.label!=='前置说明'&&n.label!=='目录');
 function foldTerminal(n,isRoot=false){
   n.children.forEach(c=>foldTerminal(c));
-  if(!isRoot&&n.children.length===1&&n.children[0].children.length===0){
+  if(!isRoot&&!n.split&&n.children.length===1&&n.children[0].children.length===0){
     const child=n.children[0],sep=/[：:]\s*$/.test(n.label)?'':'：';
     n.label+=sep+child.label;
     if(!n.page&&child.page)n.page=child.page;
@@ -48,13 +48,12 @@ function foldTerminal(n,isRoot=false){
 foldTerminal(root,true);
 // 章作为查看上下文：章下最多展示三层（节 → 知识点 → 子知识点）。
 // 第三级以下的所有原文条目合并进第三级节点，避免继续分叉。
-function collectDescendants(n){
-  const labels=[];
-  for(const child of n.children){
-    labels.push(child.label,...collectDescendants(child));
-  }
-  return labels;
+function inlineBranch(n){
+  // split 表示同一句原文的自动拆词；展示时只保留完整原句，忽略其拆词子项。
+  if(n.split||!n.children.length)return n.label;
+  return n.label+(n.children.length?`：${n.children.map(inlineBranch).join('；')}`:'');
 }
+function collectDescendants(n){return n.children.map(inlineBranch)}
 function limitChapterDepth(n,level=0){
   if(level===3&&n.children.length){
     const tail=collectDescendants(n);
