@@ -31,6 +31,20 @@
 'use strict';
 const OFFLINE_HTML='<!doctype html>\n'+document.documentElement.outerHTML;
 const DATA=JSON.parse(document.getElementById('lecture-data').textContent),root=DATA.tree;
+// 总览只保留八章与附录；最后一层只有一项时，合并为“标题：说明”。
+root.children=root.children.filter(n=>n.label!=='前置说明'&&n.label!=='目录');
+function foldTerminal(n,isRoot=false){
+  n.children.forEach(c=>foldTerminal(c));
+  if(!isRoot&&n.children.length===1&&n.children[0].children.length===0){
+    const child=n.children[0],sep=/[：:]\s*$/.test(n.label)?'':'：';
+    n.label+=sep+child.label;
+    if(!n.page&&child.page)n.page=child.page;
+    n.children=[];
+    n.folded=true;
+  }
+  n.total=1+n.children.reduce((sum,c)=>sum+(c.total||1),0);
+}
+foldTerminal(root,true);
 const $=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg',W=276,STEP=338,GAP=18;
 const palette=['#659480','#ba815c','#7a8cba','#a59859','#9c83a8','#679fa1','#ab796e','#879b60','#89938b'];
 const byId=new Map(),parent=new Map(),depth=new Map(),colors=new Map();
