@@ -12,6 +12,7 @@
 @media(max-width:760px){.app{grid-template-rows:117px minmax(0,1fr)}.top{padding:12px;gap:10px;flex-wrap:wrap;align-content:center}.brandmark{height:33px;width:31px;font-size:19px;border-radius:3px 8px 3px 3px}.brand h1{font-size:18px}.brand p{font-size:8px;margin-top:3px}.searchbox{order:3;max-width:none;flex-basis:100%;margin:0}.searchbox input{padding:9px 30px 9px 34px;font-size:12px}.searchicon{top:7px}.keyhint{top:10px}.searchpanel{top:40px;width:100%}.mobilemenu{display:block;margin-left:auto}.downloadtop{display:none}.rail{display:none;position:absolute;top:117px;bottom:0;left:0;width:245px;z-index:12;box-shadow:var(--shadow)}.rail.open{display:flex}.scrim.open{display:block;position:fixed;inset:117px 0 0;background:#152f2d55;z-index:11}.bar{padding:10px 12px}.breadcrumbs{flex-basis:60%;font-size:11px}.bar>.btn{padding:6px 9px;font-size:11px}.modes button{padding:4px 7px;font-size:11px}.drawer{top:117px;width:350px;max-width:96vw}.maptitle{left:19px;top:18px}.maptitle h2{font-size:23px}.maptitle p{max-width:240px;line-height:1.7}.mapnote{display:none}.floating{bottom:17px;left:14px}.status{padding:0 12px;font-size:9px}.status .secondary{display:none}.outline{padding:20px 14px}.outline ul{margin-left:8px;padding-left:9px}.pdfbar strong{font-size:10px}.pdfbar{gap:6px;padding:8px}.pdfbar .btn{font-size:10px;padding:6px}.pdfdialog{width:98vw;height:94dvh}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 @media print{.top,.rail,.bar,.status,.drawer,.floating,.mapnote,.maptitle,.searchpanel,.toast{display:none!important}.app,.main,.surface{height:auto;display:block;overflow:visible}.workspace{display:none!important}.outline{display:block!important;overflow:visible}.orow{break-inside:avoid}.opage,.otoggle{display:none}}
+.node .label-title{display:block;font-weight:600;margin-bottom:7px;color:inherit}.node .label-items{display:grid;gap:5px;margin:0;padding:0;list-style:none}.node .label-item{display:grid;grid-template-columns:22px minmax(0,1fr);gap:4px;align-items:start}.node .label-num{color:var(--copper);font:600 12px Georgia,serif;padding-top:2px}.node .label-copy{min-width:0}
 </style>
 </head>
 <body>
@@ -57,7 +58,7 @@ function collectDescendants(n){
 function limitChapterDepth(n,level=0){
   if(level===3&&n.children.length){
     const tail=collectDescendants(n);
-    n.label+=(/[：:]\s*$/.test(n.label)?'':'：')+tail.join('；');
+    n.label+=(/[：:]\s*$/.test(n.label)?'':'：')+'\n'+tail.map((text,index)=>`${index+1}. ${text}`).join('\n');
     n.children=[];
     n.folded=true;
     n.total=1;
@@ -81,7 +82,8 @@ function pageLabel(p){return p>3?`正文 P${p-3}`:p===1?'封面说明':`目录 P
 function pathOf(n){let path=[];while(n){path.unshift(n);n=byId.get(parent.get(n.id))}return path}
 function notice(t){$('toast').textContent=t;$('toast').classList.add('show');clearTimeout(notice.timer);notice.timer=setTimeout(()=>$('toast').classList.remove('show'),2600)}
 function makeButton(text,fn,cls='btn'){let b=document.createElement('button');b.type='button';b.textContent=text;b.className=cls;b.addEventListener('click',fn);return b}
-function nodeHeight(n,isRoot=false){ctx.font=(isRoot?'600 16px':'13px')+' "PingFang SC","Microsoft YaHei",sans-serif';let lines=1,w=0;for(const ch of n.label){if(ch==='\n'){lines++;w=0;continue}const cw=ctx.measureText(ch).width;if(w+cw>W-38){lines++;w=cw}else w+=cw}return lines*(isRoot?25:22)+51+(n.image?148:0)}
+function makeMapLabel(n,fn){const b=makeButton('',fn,'label'),rows=n.label.split('\n');if(rows.length===1){b.textContent=n.label;return b}const title=document.createElement('span');title.className='label-title';title.textContent=rows.shift();const list=document.createElement('ol');list.className='label-items';for(const row of rows){const item=document.createElement('li'),num=document.createElement('span'),copy=document.createElement('span');item.className='label-item';num.className='label-num';copy.className='label-copy';const match=row.match(/^(\d+)\.\s*(.*)$/);num.textContent=match?`${match[1]}.`:'·';copy.textContent=match?match[2]:row;item.append(num,copy);list.append(item)}b.append(title,list);return b}
+function nodeHeight(n,isRoot=false){ctx.font=(isRoot?'600 16px':'13px')+' "PingFang SC","Microsoft YaHei",sans-serif';let lines=1,w=0;for(const ch of n.label){if(ch==='\n'){lines++;w=0;continue}const cw=ctx.measureText(ch).width;if(w+cw>W-38){lines++;w=cw}else w+=cw}const rows=Math.max(0,n.label.split('\n').length-1);return lines*(isRoot?25:22)+51+(rows?7+Math.max(0,rows-1)*5:0)+(n.image?148:0)}
 function isVisibleChild(n){return expanded.has(n.id)?n.children:[]}
 function calculate(){layout=[];positions.clear();
  function measure(n,d){const ch=isVisibleChild(n);const own=nodeHeight(n,n===focus);const children=ch.map(c=>measure(c,d+1));return{n,d,own,children,size:Math.max(own,children.reduce((s,c)=>s+c.size,0)+Math.max(0,ch.length-1)*GAP)}}
@@ -103,7 +105,7 @@ function paint(){world.style.transform=`translate(${offset.x}px,${offset.y}px) s
   const rightward=item.x>par.x,x1=rightward?par.x+par.w:par.x,y1=par.y+par.h/2,x2=rightward?item.x:item.x+item.w,y2=item.y+item.h/2;const path=document.createElementNS(NS,'path');path.setAttribute('d',`M${x1},${y1} C${(x1+x2)/2},${y1} ${(x1+x2)/2},${y2} ${x2},${y2}`);path.setAttribute('fill','none');path.setAttribute('stroke',colors.get(item.n.id));path.setAttribute('stroke-opacity','.48');path.setAttribute('stroke-width','1.4');edgeFrag.append(path);
  }
  for(const item of visible){const n=item.n,el=document.createElement('div');el.className='node'+(n===focus?' rootnode':'')+(selected===n.id?' selected':'');el.dataset.id=n.id;el.style.cssText=`left:${item.x}px;top:${item.y}px;height:${item.h}px;--branch:${colors.get(n.id)}`;
-  const title=makeButton(n.label,()=>{selected=n.id;if(n.children.length)toggle(n.id);else showDetail(n.id)},'label');title.title=n.children.length?'点击展开或收起；下方「原文」查看详情':'查看此细项及原文';if(n.children.length)title.setAttribute('aria-expanded',expanded.has(n.id));el.append(title);
+  const title=makeMapLabel(n,()=>{selected=n.id;if(n.children.length)toggle(n.id);else showDetail(n.id)});title.title=n.children.length?'点击展开或收起；下方「原文」查看详情':'查看此细项及原文';if(n.children.length)title.setAttribute('aria-expanded',expanded.has(n.id));el.append(title);
   if(n.image){const im=document.createElement('img');im.src=n.image;im.alt=n.label;im.className='pic';im.addEventListener('click',()=>showDetail(n.id));el.append(im)}
   const meta=document.createElement('div');meta.className='meta';meta.append(makeButton('原文 · '+pageLabel(n.page),()=>showDetail(n.id),'src'));
   if(/小烦口诀|小烦巧记/.test(n.label)){const tag=document.createElement('span');tag.className='kind';tag.textContent='口诀';meta.append(tag)}else if(n.atomic){const tag=document.createElement('span');tag.textContent='细项';meta.append(tag)}
