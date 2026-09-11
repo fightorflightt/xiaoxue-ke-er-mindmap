@@ -45,6 +45,28 @@ function foldTerminal(n,isRoot=false){
   n.total=1+n.children.reduce((sum,c)=>sum+(c.total||1),0);
 }
 foldTerminal(root,true);
+// 章作为查看上下文：章下最多展示三层（节 → 知识点 → 子知识点）。
+// 第三级以下的所有原文条目合并进第三级节点，避免继续分叉。
+function collectDescendants(n){
+  const labels=[];
+  for(const child of n.children){
+    labels.push(child.label,...collectDescendants(child));
+  }
+  return labels;
+}
+function limitChapterDepth(n,level=0){
+  if(level===3&&n.children.length){
+    const tail=collectDescendants(n);
+    n.label+=(/[：:]\s*$/.test(n.label)?'':'：')+tail.join('；');
+    n.children=[];
+    n.folded=true;
+    n.total=1;
+    return;
+  }
+  n.children.forEach(child=>limitChapterDepth(child,level+1));
+  n.total=1+n.children.reduce((sum,child)=>sum+(child.total||1),0);
+}
+root.children.forEach(chapter=>limitChapterDepth(chapter));
 const $=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg',W=276,STEP=338,GAP=18;
 const palette=['#659480','#ba815c','#7a8cba','#a59859','#9c83a8','#679fa1','#ab796e','#879b60','#89938b'];
 const byId=new Map(),parent=new Map(),depth=new Map(),colors=new Map();
